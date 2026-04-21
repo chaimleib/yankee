@@ -1,6 +1,5 @@
 const fs = require('fs');
 const yaml = require('js-yaml');
-const tinyError = require('tiny-error');
 const isObject = require('isobject');
 const omit = require('object.omit');
 const includes = require('array-includes');
@@ -11,9 +10,14 @@ const { spawnSync } = require('child_process');
 const has = (obj, key) => Object.hasOwnProperty.call(obj, key);
 
 // (String) => Error
-const prettyError = (message) => (
-  tinyError(`Oops! Things went wrong. ${message}`)
-);
+const prettyError = (message) => {
+  // Create a lightweight error object without the stack trace.
+  // Formerly, this was done with the tiny-error package,
+  // but that is no longer maintained and has security issues.
+  const err = Object.create(Error.prototype);
+  err.message = `Oops! Things went wrong. ${message}`;
+  return err;
+};
 
 // (
 //    previousVersion: String,
