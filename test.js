@@ -371,7 +371,7 @@ testInitialRelease('`tag` works', (mockFsProxy, _, is) => {
   const yankeeStub = proxyquire('.', {
     child_process: {
       spawnSync: (command, args, options) => {
-        run++; // eslint-disable-line no-plusplus
+        run++;
 
         if (run === 1) {
           is.deepEqual(
