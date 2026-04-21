@@ -1,43 +1,45 @@
-require('tap-spec-integrated');
-const test = require('tape-catch');
 const u = require('untab');
 const mockFs = require('mock-fs');
 const fs = require('fs');
 const proxyquire = require('proxyquire');
 const includes = require('array-includes');
+// eslint-disable-next-line import/no-unresolved
+const test = require('node:test');
 
 const yankee = require('.');
 
 const date = new Date('2016-05-20');
 const path = '/my/project';
 
-test('Detects the initial release', (is) => {
+test('Detects the initial release', (t, done) => {
   mockFs({
     '/my/project/Changelog.yaml': u`
     master:
       note: Initial release
   `,
   });
+  t.after(() => {
+    mockFs.restore();
+  });
 
   const result = yankee({ path, date });
 
-  is.equal(fs.readFileSync('/my/project/Changelog.yaml', 'utf8'), u`
+  t.assert.strictEqual(fs.readFileSync('/my/project/Changelog.yaml', 'utf8'), u`
     1.0.0:
       date: 2016-05-20
       note: Initial release
   `);
 
-  is.deepEqual(
+  t.assert.deepStrictEqual(
     result,
     { previousVersion: undefined, newVersion: '1.0.0', bump: 'initial' },
     'reports correct bump data',
   );
 
-  mockFs.restore();
-  is.end();
+  done();
 });
 
-test('Detects a breaking release', (is) => {
+test('Detects a breaking release', (t, done) => {
   mockFs({
     '/my/project/Changelog.yaml': u`
     master:
@@ -48,10 +50,13 @@ test('Detects a breaking release', (is) => {
       note: Whatever
   `,
   });
+  t.after(() => {
+    mockFs.restore();
+  });
 
   const result = yankee({ path, date });
 
-  is.equal(fs.readFileSync('/my/project/Changelog.yaml', 'utf8'), u`
+  t.assert.strictEqual(fs.readFileSync('/my/project/Changelog.yaml', 'utf8'), u`
     2.0.0:
       date: 2016-05-20
       breaking changes: Whatever
@@ -61,17 +66,16 @@ test('Detects a breaking release', (is) => {
       note: Whatever
   `);
 
-  is.deepEqual(
+  t.assert.deepStrictEqual(
     result,
     { previousVersion: '1.2.3', newVersion: '2.0.0', bump: 'breaking' },
     'reports correct bump data',
   );
 
-  mockFs.restore();
-  is.end();
+  done();
 });
 
-test('Detects a feature release', (is) => {
+test('Detects a feature release', (t, done) => {
   mockFs({
     '/my/project/Changelog.yaml': u`
     master:
@@ -82,10 +86,13 @@ test('Detects a feature release', (is) => {
       note: Whatever
   `,
   });
+  t.after(() => {
+    mockFs.restore();
+  });
 
   const result = yankee({ path, date });
 
-  is.equal(fs.readFileSync('/my/project/Changelog.yaml', 'utf8'), u`
+  t.assert.strictEqual(fs.readFileSync('/my/project/Changelog.yaml', 'utf8'), u`
     1.3.0:
       date: 2016-05-20
       new features: Whatever
@@ -95,17 +102,16 @@ test('Detects a feature release', (is) => {
       note: Whatever
   `);
 
-  is.deepEqual(
+  t.assert.deepStrictEqual(
     result,
     { previousVersion: '1.2.3', newVersion: '1.3.0', bump: 'feature' },
     'reports correct bump data',
   );
 
-  mockFs.restore();
-  is.end();
+  done();
 });
 
-test('Detects a bugfix release', (is) => {
+test('Detects a bugfix release', (t, done) => {
   mockFs({
     '/my/project/Changelog.yaml': u`
     master:
@@ -116,10 +122,13 @@ test('Detects a bugfix release', (is) => {
       note: Whatever
   `,
   });
+  t.after(() => {
+    mockFs.restore();
+  });
 
   const result = yankee({ path, date });
 
-  is.equal(fs.readFileSync('/my/project/Changelog.yaml', 'utf8'), u`
+  t.assert.strictEqual(fs.readFileSync('/my/project/Changelog.yaml', 'utf8'), u`
     1.2.4:
       date: 2016-05-20
       fixed bugs: Whatever
@@ -129,63 +138,69 @@ test('Detects a bugfix release', (is) => {
       note: Whatever
   `);
 
-  is.deepEqual(
+  t.assert.deepStrictEqual(
     result,
     { previousVersion: '1.2.3', newVersion: '1.2.4', bump: 'bugfix' },
     'reports correct bump data',
   );
 
-  mockFs.restore();
-  is.end();
+  done();
 });
 
-test('Fails when the `Changelog.yaml` is not an object', (is) => {
-  is.plan(1);
+test('Fails when the `Changelog.yaml` is not an object', (t, done) => {
+  t.plan(1);
 
   mockFs({ '/my/project/Changelog.yaml': 'Just a string' });
+  t.after(() => {
+    mockFs.restore();
+  });
 
   try {
     yankee({ path, date });
   } catch (error) {
-    is.ok(/a yaml object/i.test(error),
+    t.assert.ok(/a yaml object/i.test(error),
       'fails with a helpful message');
   }
 
-  mockFs.restore();
-  is.end();
+  done();
 });
 
-test('Fails when the `Changelog.yaml` doesn’t contain `master:`', (is) => {
-  is.plan(1);
+test('Fails when the `Changelog.yaml` doesn’t contain `master:`', (t, done) => {
+  t.plan(1);
 
   mockFs({
     '/my/project/Changelog.yaml': u`
     any old: object
   `,
   });
+  t.after(() => {
+    mockFs.restore();
+  });
 
   try {
     yankee({ path, date });
   } catch (error) {
-    is.ok(/a top-level `unreleased:` property/i.test(error),
+    t.assert.ok(/a top-level `unreleased:` property/i.test(error),
       'fails with a helpful message');
   }
 
-  mockFs.restore();
-  is.end();
+  done();
 });
 
 const testInitialRelease = (title, callback) => {
-  test(title, (is) => {
-    const mockFsProxy = (options) => mockFs(
-      {
+  test(title, (t, done) => {
+    const mockFsProxy = (options) => {
+      mockFs({
         '/my/project/Changelog.yaml': u`
           master:
             note: Initial release
         `,
         ...options,
-      },
-    );
+      });
+      t.after(() => {
+        mockFs.restore();
+      });
+    };
 
     const yankeeProxy = (options) => yankee(
       {
@@ -195,11 +210,11 @@ const testInitialRelease = (title, callback) => {
       },
     );
 
-    callback(mockFsProxy, yankeeProxy, is);
+    callback(mockFsProxy, yankeeProxy, t, done);
   });
 };
 
-testInitialRelease('`npm` works', (mockFsProxy, yankeeProxy, is) => {
+testInitialRelease('`npm` works', (mockFsProxy, yankeeProxy, t, done) => {
   mockFsProxy({
     '/my/project/package.json': '{ "version": "0.0.0" }',
     '/my/project/npm-shrinkwrap.json': '{}',
@@ -207,7 +222,7 @@ testInitialRelease('`npm` works', (mockFsProxy, yankeeProxy, is) => {
 
   yankeeProxy({ npm: true });
 
-  is.equal(
+  t.assert.strictEqual(
     fs.readFileSync('/my/project/package.json', 'utf8'),
     u`
       {
@@ -217,7 +232,7 @@ testInitialRelease('`npm` works', (mockFsProxy, yankeeProxy, is) => {
     'updates the `version` in the `package.json`',
   );
 
-  is.equal(
+  t.assert.strictEqual(
     fs.readFileSync('/my/project/npm-shrinkwrap.json', 'utf8'),
     u`
       {
@@ -227,30 +242,28 @@ testInitialRelease('`npm` works', (mockFsProxy, yankeeProxy, is) => {
     'adds a `version` to the `npm-shrinkwrap.json`',
   );
 
-  mockFs.restore();
-  is.end();
+  done();
 });
 
 testInitialRelease((
   'File update fails silently if file doesn’t exist'
-), (mockFsProxy, yankeeProxy, is) => {
+), (mockFsProxy, yankeeProxy, t, done) => {
   mockFsProxy({});
 
   try {
     yankeeProxy({ npm: true });
-  } catch (_) {
+  } catch (err) {
     /* istanbul ignore next */
-    is.fail('no error is thrown');
+    t.assert.fail(`an unexpected error was thrown: ${err}`);
   }
 
-  mockFs.restore();
-  is.end();
+  done();
 });
 
 testInitialRelease((
   'File update fails gracefully if file is not valid JSON'
-), (mockFsProxy, yankeeProxy, is) => {
-  is.plan(1);
+), (mockFsProxy, yankeeProxy, t, done) => {
+  t.plan(1);
 
   mockFsProxy({
     '/my/project/package.json': 'invalid JSON',
@@ -259,18 +272,17 @@ testInitialRelease((
   try {
     yankeeProxy({ npm: true });
   } catch (error) {
-    is.ok(/valid json/i.test(error),
+    t.assert.ok(/valid json/i.test(error),
       'with a helpful message');
   }
 
-  mockFs.restore();
-  is.end();
+  done();
 });
 
 testInitialRelease((
   'File update fails gracefully if file is not a JSON object'
-), (mockFsProxy, yankeeProxy, is) => {
-  is.plan(1);
+), (mockFsProxy, yankeeProxy, t, done) => {
+  t.plan(1);
 
   mockFsProxy({
     '/my/project/package.json': 'null',
@@ -279,39 +291,38 @@ testInitialRelease((
   try {
     yankeeProxy({ npm: true });
   } catch (error) {
-    is.ok(/a json object/i.test(error),
+    t.assert.ok(/a json object/i.test(error),
       'with a helpful message');
   }
 
-  mockFs.restore();
-  is.end();
+  done();
 });
 
-testInitialRelease('`commit` works', (mockFsProxy, _, is) => {
-  is.plan(4);
+testInitialRelease('`commit` works', (mockFsProxy, _, t, done) => {
+  t.plan(4);
 
   const yankeeStub = proxyquire('.', {
     child_process: {
       spawnSync: (command, args, options) => {
-        is.deepEqual(
+        t.assert.deepStrictEqual(
           [command, args[0], options.cwd],
           ['git', 'commit', path],
           'calls `git commit`',
         );
 
-        is.equal(
+        t.assert.strictEqual(
           args[1],
           '--message=1.0.0',
           'commit message equals raw version number',
         );
 
-        is.equal(
+        t.assert.strictEqual(
           args[2],
           'Changelog.yaml',
           'ignores staged files and commits `Changelog.yaml`',
         );
 
-        is.ok(
+        t.assert.ok(
           ([
             'package.json', 'npm-shrinkwrap.json',
           ].every((file) => includes(args, file))),
@@ -328,26 +339,25 @@ testInitialRelease('`commit` works', (mockFsProxy, _, is) => {
 
   yankeeStub({ npm: true, commit: true, path });
 
-  mockFs.restore();
-  is.end();
+  done();
 });
 
 testInitialRelease((
   '`commit` doesn’t break when no `npm-shrinkwrap.json` is present'
-), (mockFsProxy, _, is) => {
-  is.plan(2);
+), (mockFsProxy, _, t, done) => {
+  t.plan(2);
 
   const yankeeStub = proxyquire('.', {
     child_process: {
       spawnSync: (command, args, options) => {
-        is.deepEqual(
+        t.assert.deepStrictEqual(
           [command, args[0], options.cwd],
           ['git', 'commit', path],
           'calls `git commit`',
         );
 
-        is.notOk(
-          includes(args, 'npm-shrinkwrap.json'),
+        t.assert.ok(
+          !includes(args, 'npm-shrinkwrap.json'),
           'doesn’t try to commit non-existent files',
         );
       },
@@ -360,12 +370,11 @@ testInitialRelease((
 
   yankeeStub({ npm: true, commit: true, path });
 
-  mockFs.restore();
-  is.end();
+  done();
 });
 
-testInitialRelease('`tag` works', (mockFsProxy, _, is) => {
-  is.plan(4);
+testInitialRelease('`tag` works', (mockFsProxy, _, t, done) => {
+  t.plan(4);
 
   let run = 0;
   const yankeeStub = proxyquire('.', {
@@ -374,32 +383,32 @@ testInitialRelease('`tag` works', (mockFsProxy, _, is) => {
         run++; // eslint-disable-line no-plusplus
 
         if (run === 1) {
-          is.deepEqual(
+          t.assert.deepStrictEqual(
             [command, args[0]],
             ['git', 'commit'],
             'implies `commit`',
           );
         } else if (run === 2) {
-          is.deepEqual(
+          t.assert.deepStrictEqual(
             [command, args.slice(0, 2), options.cwd],
             ['git', ['tag', '--annotate'], path],
             'creates an annotated git tag',
           );
 
-          is.equal(
+          t.assert.strictEqual(
             args[2],
             '--message=1.0.0',
             'commit message equals raw version number',
           );
 
-          is.equal(
+          t.assert.strictEqual(
             args[3],
             'v1.0.0',
             'tag name equals raw version number preceeded with a “v”',
           );
         } else {
           /* istanbul ignore next */
-          test.fail('doesn’t run anything else');
+          t.assert.fail('doesn’t run anything else');
         }
       },
     },
@@ -409,6 +418,5 @@ testInitialRelease('`tag` works', (mockFsProxy, _, is) => {
 
   yankeeStub({ npm: true, tag: true, path });
 
-  mockFs.restore();
-  is.end();
+  done();
 });
